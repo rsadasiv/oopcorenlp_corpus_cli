@@ -18,619 +18,310 @@ package io.outofprintmagazine.corpus;
 
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.CommandLineParser;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Options;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.outofprintmagazine.corpus.batch.CorpusBatch;
-import io.outofprintmagazine.corpus.storage.ScratchStorage;
-import io.outofprintmagazine.corpus.storage.file.FileScratchStorage;
-import io.outofprintmagazine.corpus.storage.postgresql.PostgreSQLBatchStorage;
-import io.outofprintmagazine.corpus.storage.s3.S3BatchStorage;
+import io.outofprintmagazine.corpus.batch.model.CorpusBatchStepModel;
+import io.outofprintmagazine.util.IParameterStore;
 import io.outofprintmagazine.util.ParameterStorePropertiesFile;
 
 public class App
 {
 	private static final Logger logger = LogManager.getLogger(App.class);
 	
-    public static void main(String[] argv ) throws IOException, InstantiationException, IllegalAccessException, ClassNotFoundException {
-    	//CorpusStorage storage = new FileCorpora();
-    	CorpusBatch corpusBatch = new CorpusBatch();
-    	ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-//    	corpusBatch.setData(
-//    			mapper.readValue(
-//    					//corpusBatch.getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/oopArchive/ArchiveBatch.json"),
-//    					corpusBatch.getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/oopArchive/DNASectionBatch.json"),
-//    					CorpusBatchModel.class
-//    			)
-//    	);
-    	
-
-    	
-    	
-    	//ObjectNode stagingBatch = storage.getStagingBatch("DNA", "DNALifestyle");
-//    	ObjectNode stagingBatch = storage.getStagingBatch("Published", "OOPArchives");
-//    	
-//    	System.out.println(mapper.writeValueAsString(stagingBatch));
-//    	corpusBatch.setData(mapper.treeToValue(stagingBatch, CorpusBatchModel.class));
-//    	
-//    	System.out.println(corpusBatch.getData().getCorpusId());
-//    	System.out.println(corpusBatch.getData().getCorpusBatchId());
-//    	corpusBatch.runStep("CleanStoryText");
-    	App app = new App();
-//    	app.testAO3AtomTemplate();
-//    	app.testAO3Template();
-//    	app.testDNALifestyleTemplate();
-//    	app.testDNALiteratureTemplate();
-    	app.testDropboxTemplate();
-//    	app.importCarverEbook();
-//    	app.testEbookCarverTemplate();
-//    	app.importHemingwayEbook();
-//    	app.testEbookHemingwayTemplate();
-//    	app.testGutenbergChekhovTemplate();
-//    	app.testGutenbergMaupassantTemplate();
-//    	app.testGutenbergOHenryTemplate();
-//    	app.testOOPArchivesTemplate();
-//    	app.testRedditTemplate();
-//    	app.testTwitterJGLTemplate();
-//    	app.testTwitterTwitteratureTemplate();
-//    	app.testWikipediaAuthorsTemplate();
-    	
-//    	app.testAO3AtomStagingBatch();
-//    	app.testAO3StagingBatch();
-//    	app.testDNALifestyleStagingBatch();
-//    	app.testDNALiteratureStagingBatch();
-//    	app.testDropboxStagingBatch();
-//
-//    	app.testEbookCarverStagingBatch();
-//
-//    	app.testEbookHemingwayStagingBatch();
-//    	app.testGutenbergChekhovStagingBatch();
-//    	app.testGutenbergMaupassantStagingBatch();
-//    	app.testGutenbergOHenryStagingBatch();
-//    	app.testOOPArchivesStagingBatch();
-//    	app.testRedditStagingBatch();
-////    	app.testTwitterJGLStagingBatch();
-////    	app.testTwitterTwitteratureStagingBatch();
-//    	app.testWikipediaAuthorsStagingBatch();
-    }
-    
-    
-    
-    public void testAO3AtomTemplate() {
-    	boolean pass = false;
-    	String msg = "AO3 Atom Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/ao3/AO3HardyBoysAtom.json");
+	@SuppressWarnings("unused")
+	private Logger getLogger() {
+		return logger;
+	}
+		
+	public static void main(String[] args) throws Exception {
+		CommandLineParser parser = new DefaultParser();
+		Options options = new Options();
+		options.addOption( "a", "action", true, "REQUIRED. analyze or generate. analyze requires inputPath. generate requires outputPath." );
+		options.addOption( "i", "inputPath", true, "Path to input json file (./batch.json)." );
+		options.addOption( "o", "outputPath", true, "Path to output json files (.)." );
+		options.addOption( "h", "help", false, "print usage" );
+		CommandLine cmd = parser.parse( options, args);
+		if (cmd.hasOption("help") || cmd.getOptions().length == 0 || !cmd.hasOption("action")) {
+			HelpFormatter formatter = new HelpFormatter();
+		    formatter.printHelp("oopcorenlp", options);
+		    return;
+		}
+		if (cmd.getOptionValue("action").equals("generate")) {
+			App app = new App();
+			String outputPath = cmd.hasOption("outputPath")?cmd.getOptionValue("outputPath"):".";
+			app.generateTemplates(outputPath);
+		    return;
+		}
+		if (cmd.getOptionValue("action").equals("analyze")) {
+			String inputPath = cmd.hasOption("inputPath")?cmd.getOptionValue("inputPath"):".";
+    		CorpusBatch batch = CorpusBatch.buildFromTemplate(inputPath);
     		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		t.printStackTrace();
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testAO3AtomStagingBatch() {
-    	boolean pass = false;
-    	String msg = "AO3 Atom Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("AO3", "HardyBoysAtom");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		t.printStackTrace();
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testAO3Template() {
-    	boolean pass = false;
-    	String msg = "AO3 Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/ao3/AO3HardyBoys.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		t.printStackTrace();
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testAO3StagingBatch() {
-    	boolean pass = false;
-    	String msg = "AO3 Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("AO3", "HardyBoys");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		t.printStackTrace();
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testDNALifestyleTemplate() {
-    	boolean pass = false;
-    	String msg = "DNA Lifestyle Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/dna/DNALifestyle.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testDNALifestyleStagingBatch() {
-    	boolean pass = false;
-    	String msg = "DNA Lifestyle Staging batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("DNA", "DNALifestyle");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testDNALiteratureTemplate() {
-    	boolean pass = false;
-    	String msg = "DNA Literature Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/dna/DNALiterature.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testDNALiteratureStagingBatch() {
-    	boolean pass = false;
-    	String msg = "DNA Literature Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("DNA", "DNALiterature");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testDropboxTemplate() {
-    	boolean pass = false;
-    	String msg = "Dropbox Template success";
-    	try {
-    		ParameterStorePropertiesFile parameterStore = new ParameterStorePropertiesFile("data", "oopcorenlp.properties");
-    		
-    		PostgreSQLBatchStorage pg = new PostgreSQLBatchStorage(parameterStore);
-    		pg.createCorpus("submissions");
-    		//CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/dropbox/OOPReading.json");
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/dropbox/BatchProperties.json");
-    		batch.run();
-    		pass = true;
-        	S3BatchStorage storage = new S3BatchStorage(parameterStore);
-        	ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-        	storage.storeStagingBatchJson("submissions", "OOPReading", mapper.valueToTree(batch.getData()));
-        	pg.storeStagingBatchJson("submissions", "OOPReading", mapper.valueToTree(batch.getData()));
-    	}
-    	catch (Throwable t) {
-    		t.printStackTrace();
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-
-    	
-    }
-    
-    
-    public void testDropboxStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Dropbox Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Submissions", "OOPReading", "io.outofprintmagazine.corpus.storage.postgresql.PostgreSQLCorpora");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		t.printStackTrace();
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-
-    public void importCarverEbook() throws Exception {
-        File file = new File("C:\\Users\\rsada\\eclipse-workspace\\oopcorenlp_corpus\\corpus\\data\\Raymond Carver\\Where I'm Calling From (Vintage Cont (6)\\Where I'm Calling From (Vintage - Raymond Carver.txt.trimmed.txt");
-        String buf = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-    	ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-    	ScratchStorage storage = new FileScratchStorage();
-    	storage.storeScratchFileString(
-    			"Ebook", 
-    			storage.getScratchFilePath("Carver", "Calibre", "Where_Im_Calling_From.txt"),
-				buf
+		    return;
+		}
+		HelpFormatter formatter = new HelpFormatter();
+	    formatter.printHelp("oopcorenlp", options);
+ 		
+	}
+	
+	private void writeProperties(String outputPath) throws IOException {
+		Properties p = new Properties();
+		p.load(getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/util/oopcorenlp.properties"));
+		String fileCorpus_Path = p.getProperty("fileCorpus_Path", "Corpora");
+		p.setProperty("fileCorpus_Path", outputPath + System.getProperty("file.separator", "/") + fileCorpus_Path);
+		FileWriter fout = null;
+		try {
+			fout = new FileWriter(new File(outputPath + System.getProperty("file.separator", "/") + "oopcorenlp.properties"));
+			p.store(fout, "Sample config");
+		}
+		finally {
+			if (fout != null) {
+				fout.close();
+				fout = null;
+			}
+		}
+	}
+	
+	private void appendAnalyzeStep(CorpusBatch corpusBatch) throws IOException {
+		CorpusBatchStepModel analyzeStep = new CorpusBatchStepModel();
+		analyzeStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
+		analyzeStep.setCorpusBatchStepSequenceId(new Integer(corpusBatch.getData().getCorpusBatchSteps().size()));
+		analyzeStep.setCorpusBatchStepId("Analyze");
+		analyzeStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.Analyze");
+		ArrayNode customAnnotators = analyzeStep.getProperties().arrayNode();
+		List<String> customAnnotatorList = readStreamToList(getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/util/annotators.txt"));
+		for (String customAnnotator : customAnnotatorList) {
+			customAnnotators.add(customAnnotator);
+		}
+	}
+	
+	private void writeChekhovBatch(String outputPath) throws Exception {
+		writeFile(
+				outputPath, 
+				"Chekhov.html", 
+				getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/impl/gutenberg/Chekhov.html")
 		);
-    	
-    }
-    
-    
-    public void testEbookCarverTemplate() {
-    	boolean pass = false;
-    	String msg = "Ebook Carver Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/ebook/Carver.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testEbookCarverStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Ebook Carver Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Ebook", "Carver");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-
-    public void importHemingwayEbook() throws Exception {
-        File file = new File("C:\\Users\\rsada\\eclipse-workspace\\oopcorenlp_corpus\\corpus\\data\\Ernest Hemingway\\The Complete Short Stories Of Ernest (8)\\The Complete Short Stories Of E - Ernest Hemingway.txt.trimmed.txt");
-        String buf = FileUtils.readFileToString(file, StandardCharsets.UTF_8);
-    	ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-    	ScratchStorage storage = new FileScratchStorage();
-    	storage.storeScratchFileString(
-    			"Ebook", 
-    			storage.getScratchFilePath("Hemingway", "Calibre", "Complete_Short_Stories.txt"),
-				buf
+		writeFile(
+				outputPath, 
+				"Chekhov.html.properties", 
+				getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/impl/gutenberg/Chekhov.html.properties")
 		);
-    	
-    }
-    
-    
-    public void testEbookHemingwayTemplate() {
-    	boolean pass = false;
-    	String msg = "Ebook Hemingway Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/ebook/Hemingway.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testEbookHemingwayStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Ebook Hemingway Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Ebook", "Hemingway");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testGutenbergChekhovTemplate() {
-    	boolean pass = false;
-    	String msg = "Gutenberg Chekhov Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/gutenberg/Chekhov.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testGutenbergChekhovStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Gutenberg Chekhov Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Gutenberg", "Chekhov");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testGutenbergMaupassantTemplate() {
-    	boolean pass = false;
-    	String msg = "Gutenberg Maupassant Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/gutenberg/Maupassant.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testGutenbergMaupassantStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Gutenberg Maupassant Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Gutenberg", "Maupassant");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testGutenbergOHenryTemplate() {
-    	boolean pass = false;
-    	String msg = "Gutenberg OHenry Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/gutenberg/OHenry.json");
-    		batch.run();
-    		CorpusBatch batchTable = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/gutenberg/OHenryTableTOC.json");
-    		batchTable.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testGutenbergOHenryStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Gutenberg OHenry Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Gutenberg", "OHenry");
-    		batch.run();
-    		CorpusBatch batchTable = CorpusBatch.buildFromStagingBatch("Gutenberg", "OHenryTable");
-    		batchTable.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testOOPArchivesTemplate() {
-    	boolean pass = false;
-    	String msg = "OOP Archives Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/oop/OOPArchives.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testOOPArchivesStagingBatch() {
-    	boolean pass = false;
-    	String msg = "OOP Archives Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Published", "OOPArchives", "io.outofprintmagazine.corpus.storage.postgresql.PostgreSQLCorpora");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testRedditTemplate() {
-    	boolean pass = false;
-    	String msg = "Reddit success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/reddit/Reddit.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testRedditStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Reddit StagingBatch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Reddit", "shortstories");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testTwitterJGLTemplate() {
-    	boolean pass = false;
-    	String msg = "Twitter JGL Template success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/twitter/TheHermeneuticCircle.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testTwitterJGLStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Twitter JGL Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Twitter", "Hermenuetic");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testTwitterTwitteratureTemplate() {
-    	boolean pass = false;
-    	String msg = "Twitter Twitterature success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/twitter/Twitterature.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testTwitterTwitteratureStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Twitter Twitterature Staging Batch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Twitter", "Twitterature");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testWikipediaAuthorsTemplate() {
-    	boolean pass = false;
-    	String msg = "Wikipedia Authors success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/wikipedia/Authors.json");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
-    public void testWikipediaAuthorsStagingBatch() {
-    	boolean pass = false;
-    	String msg = "Wikipedia Authors StagingBatch success";
-    	try {
-    		CorpusBatch batch = CorpusBatch.buildFromStagingBatch("Wikipedia", "Authors");
-    		batch.run();
-    		pass = true;
-    	}
-    	catch (Throwable t) {
-    		logger.error(t);
-    		msg = t.getMessage();
-    	}
-    	
-    }
-    
-    
+		CorpusBatch chekhovBatch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/gutenberg/Chekhov.json");
+		
+		ObjectNode batchProperties = chekhovBatch.getData().getProperties();
+		batchProperties.put("propertiesFilePath", outputPath);
+		
+		CorpusBatchStepModel importDirectoryStep = chekhovBatch.getData().getCorpusBatchSteps().get(0);
+		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
+		importDirectoryStepProperties.put("directory", outputPath);
+		appendAnalyzeStep(chekhovBatch);
+		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "ChekhovBatch.json"), chekhovBatch.getData());
+		
+	}
+	
+	private void writeMaupassantBatch(String outputPath) throws Exception {
+		writeFile(
+				outputPath, 
+				"Maupassant.html", 
+				getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/impl/gutenberg/Maupassant.html")
+		);
+		writeFile(
+				outputPath, 
+				"Maupassant.html.properties", 
+				getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/impl/gutenberg/Maupassant.html.properties")
+		);
+		CorpusBatch maupassantBatch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/gutenberg/Maupassant.json");
 
+		ObjectNode batchProperties = maupassantBatch.getData().getProperties();
+		batchProperties.put("propertiesFilePath", outputPath);
+		
+		CorpusBatchStepModel importDirectoryStep = maupassantBatch.getData().getCorpusBatchSteps().get(0);
+		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
+		importDirectoryStepProperties.put("directory", outputPath);
+		appendAnalyzeStep(maupassantBatch);
+		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "MaupassantBatch.json"), maupassantBatch.getData());	
+	}
+	
+	private void writeWodehouseBatch(String outputPath) throws Exception {
+		writeFile(
+				outputPath, 
+				"Wodehouse.txt", 
+				getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/impl/ebook/Wodehouse.txt")
+		);
+		writeFile(
+				outputPath, 
+				"Wodehouse.txt.properties", 
+				getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/corpus/batch/impl/ebook/Wodehouse.txt.properties")
+		);
+		CorpusBatch wodehouseBatch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/ebook/Wodehouse.json");
+
+		ObjectNode batchProperties = wodehouseBatch.getData().getProperties();
+		batchProperties.put("propertiesFilePath", outputPath);
+		
+		CorpusBatchStepModel importDirectoryStep = wodehouseBatch.getData().getCorpusBatchSteps().get(0);
+		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
+		importDirectoryStepProperties.put("directory", outputPath);
+		appendAnalyzeStep(wodehouseBatch);
+		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "WodehouseBatch.json"), wodehouseBatch.getData());
+	}
+	
+	private void writeOHenryBatch(String outputPath) throws Exception {
+		CorpusBatch ohenryBatch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/wikisource/OHenry.json");
+		ObjectNode batchProperties = ohenryBatch.getData().getProperties();
+		batchProperties.put("propertiesFilePath", outputPath);
+		
+		CorpusBatchStepModel importDirectoryStep = ohenryBatch.getData().getCorpusBatchSteps().get(0);
+		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
+		importDirectoryStepProperties.put("directory", outputPath);
+		appendAnalyzeStep(ohenryBatch);
+		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "OHenryBatch.json"), ohenryBatch.getData());
+	}
+	
+	public void generateTemplates(String outputPath) throws Exception {
+		writeProperties(outputPath);
+		writeChekhovBatch(outputPath);
+		writeMaupassantBatch(outputPath);
+		writeWodehouseBatch(outputPath);
+		writeOHenryBatch(outputPath);
+	}
+	
+	protected IParameterStore loadParameterStore(String path, String fileName) throws IOException {
+		return new ParameterStorePropertiesFile(path, fileName);
+	}
+	
+	protected Properties loadProperties(String path, String fileName) throws IOException {
+    	InputStream input = null;
+    	Properties props = new Properties();
+    	try {
+    		input = new FileInputStream(String.format("%s/%s", path, fileName));
+    		props.load(input);
+    		return props;
+    	}
+    	finally {
+    		if (input != null) {
+    			input.close();
+    		}
+    		input = null;
+    	}
+	}
+	
+	private void writeFile(String path, String fileName, String content) throws IOException {
+		FileOutputStream fout = null;
+		try {
+			File f = new File(path + System.getProperty("file.separator", "/") + fileName);
+			if (!f.getParentFile().exists()) {
+				f.getParentFile().mkdirs();
+			}
+			fout = new FileOutputStream(f);
+			fout.write(content.getBytes());
+		}
+		finally {
+			if (fout != null) {
+				fout.close();
+				fout.flush();
+				fout = null;
+			}
+		}
+	}
+	
+	private void writeFile(String path, String fileName, JsonNode content) throws IOException {
+		File f = new File(path + System.getProperty("file.separator", "/") + fileName);
+		ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+		mapper.configure(com.fasterxml.jackson.core.JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN, true);
+		mapper.writeValue(f, content);
+	}
+	
+	private void writeFile(String path, String fileName, InputStream in) throws IOException {
+		File f = new File(path + System.getProperty("file.separator", "/") + fileName);
+		FileOutputStream fout = null;
+		try {
+			fout = new FileOutputStream(f);
+			IOUtils.copy(in,fout);
+		}
+		finally {
+			in.close();
+			if (fout != null) {
+				fout.flush();
+				fout.close();
+			}
+		}
+	}
+	
+	private String readFile(String path, String fileName) throws IOException {
+		File f = new File(path + System.getProperty("file.separator", "/") + fileName);
+		FileInputStream fin = null;
+		try {
+			fin = new FileInputStream(f);
+			return IOUtils.toString(
+	    		fin,
+	    		StandardCharsets.UTF_8.name()
+			);
+		}
+		finally {
+			if (fin != null) {
+				fin.close();
+				fin = null;
+			}
+		}		
+	}
+	
+	private List<String> readFileToList(String path, String fileName) throws IOException {
+		List<String> allLines = FileUtils.readLines(
+					new File(
+							path + System.getProperty("file.separator", "/") + fileName
+					),
+					StandardCharsets.UTF_8.name()
+		);
+		List<String> retval = new ArrayList<String>();
+		for (String line : allLines) {
+			if (!line.startsWith("#") && !line.startsWith("/")) {
+				retval.add(line);
+			}
+		}
+		return retval;
+	}
+	
+	private List<String> readStreamToList(InputStream in) throws IOException {
+		try {
+			List<String> allLines = IOUtils.readLines(
+					in,
+					StandardCharsets.UTF_8.name()
+			);
+			List<String> retval = new ArrayList<String>();
+			for (String line : allLines) {
+				if (!line.startsWith("#") && !line.startsWith("/")) {
+					retval.add(line);
+				}
+			}
+			return retval;
+		}
+		finally {
+			in.close();
+		}
+	}
 }
