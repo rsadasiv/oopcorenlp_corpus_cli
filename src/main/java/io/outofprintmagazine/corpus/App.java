@@ -80,7 +80,8 @@ public class App
 		}
 		if (cmd.getOptionValue("action").equals("analyze")) {
 			String inputPath = cmd.hasOption("inputPath")?cmd.getOptionValue("inputPath"):".";
-    		CorpusBatch batch = CorpusBatch.buildFromTemplate(inputPath);
+			logger.info(inputPath);
+    		CorpusBatch batch = CorpusBatch.buildFromFile(inputPath);
     		batch.run();
 		    return;
 		}
@@ -94,6 +95,8 @@ public class App
 		p.load(getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/util/oopcorenlp.properties"));
 		String fileCorpus_Path = p.getProperty("fileCorpus_Path", "Corpora");
 		p.setProperty("fileCorpus_Path", outputPath + System.getProperty("file.separator", "/") + fileCorpus_Path);
+		p.setProperty("wordNet_location", "./data/dict");
+		p.setProperty("verbNet_location", "./data/verbnet3.3/");
 		FileWriter fout = null;
 		try {
 			fout = new FileWriter(new File(outputPath + System.getProperty("file.separator", "/") + "oopcorenlp.properties"));
@@ -118,6 +121,8 @@ public class App
 		for (String customAnnotator : customAnnotatorList) {
 			customAnnotators.add(customAnnotator);
 		}
+		analyzeStep.getProperties().set("customAnnotators", customAnnotators);
+		corpusBatch.getData().getCorpusBatchSteps().add(analyzeStep);
 	}
 	
 	private void writeChekhovBatch(String outputPath) throws Exception {
