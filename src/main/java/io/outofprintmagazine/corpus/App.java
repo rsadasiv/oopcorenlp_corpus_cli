@@ -123,6 +123,13 @@ public class App
 		}
 		analyzeStep.getProperties().set("customAnnotators", customAnnotators);
 		corpusBatch.getData().getCorpusBatchSteps().add(analyzeStep);
+		
+		CorpusBatchStepModel aggregateStep = new CorpusBatchStepModel();
+		aggregateStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
+		aggregateStep.setCorpusBatchStepSequenceId(new Integer(corpusBatch.getData().getCorpusBatchSteps().size()));
+		aggregateStep.setCorpusBatchStepId("CorpusAggregate");
+		aggregateStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CorpusAggregate");
+		corpusBatch.getData().getCorpusBatchSteps().add(aggregateStep);
 	}
 	
 	private void writeChekhovBatch(String outputPath) throws Exception {
