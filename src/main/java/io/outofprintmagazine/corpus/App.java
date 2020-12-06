@@ -113,7 +113,7 @@ public class App
 	private void appendAnalyzeStep(CorpusBatch corpusBatch) throws IOException {
 		CorpusBatchStepModel analyzeStep = new CorpusBatchStepModel();
 		analyzeStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		analyzeStep.setCorpusBatchStepSequenceId(new Integer(corpusBatch.getData().getCorpusBatchSteps().size()));
+		analyzeStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
 		analyzeStep.setCorpusBatchStepId("Analyze");
 		analyzeStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.Analyze");
 		ArrayNode customAnnotators = analyzeStep.getProperties().arrayNode();
@@ -123,13 +123,43 @@ public class App
 		}
 		analyzeStep.getProperties().set("customAnnotators", customAnnotators);
 		corpusBatch.getData().getCorpusBatchSteps().add(analyzeStep);
-		
+	}
+	
+	private void appendAggregateStep(CorpusBatch corpusBatch) throws IOException {
 		CorpusBatchStepModel aggregateStep = new CorpusBatchStepModel();
 		aggregateStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		aggregateStep.setCorpusBatchStepSequenceId(new Integer(corpusBatch.getData().getCorpusBatchSteps().size()));
+		aggregateStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
 		aggregateStep.setCorpusBatchStepId("CorpusAggregate");
 		aggregateStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CorpusAggregate");
 		corpusBatch.getData().getCorpusBatchSteps().add(aggregateStep);
+
+		CorpusBatchStepModel aggregateIdfStep = new CorpusBatchStepModel();
+		aggregateIdfStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
+		aggregateIdfStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
+		aggregateIdfStep.setCorpusBatchStepId("CoreNLPTfidf");
+		aggregateIdfStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CoreNLPTfidfScores");
+		corpusBatch.getData().getCorpusBatchSteps().add(aggregateIdfStep);		
+
+		CorpusBatchStepModel aggregateZStep = new CorpusBatchStepModel();
+		aggregateZStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
+		aggregateZStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
+		aggregateZStep.setCorpusBatchStepId("CoreNLPZ");
+		aggregateZStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CoreNLPZScores");
+		corpusBatch.getData().getCorpusBatchSteps().add(aggregateZStep);	
+
+		CorpusBatchStepModel aggregateMBStep = new CorpusBatchStepModel();
+		aggregateMBStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
+		aggregateMBStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
+		aggregateMBStep.setCorpusBatchStepId("CoreNLPMB");
+		aggregateMBStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CoreNLPMyersBriggsScores");
+		corpusBatch.getData().getCorpusBatchSteps().add(aggregateMBStep);		
+		
+		CorpusBatchStepModel word2vecStep = new CorpusBatchStepModel();
+		word2vecStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
+		word2vecStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
+		word2vecStep.setCorpusBatchStepId("Word2Vec");
+		word2vecStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.BuildWord2VecModels");
+		corpusBatch.getData().getCorpusBatchSteps().add(word2vecStep);
 	}
 	
 	private void writeChekhovBatch(String outputPath) throws Exception {
@@ -152,6 +182,7 @@ public class App
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
 		appendAnalyzeStep(chekhovBatch);
+		appendAggregateStep(chekhovBatch);
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "ChekhovBatch.json"), chekhovBatch.getData());
 		
 	}
@@ -176,6 +207,7 @@ public class App
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
 		appendAnalyzeStep(maupassantBatch);
+		appendAggregateStep(maupassantBatch);		
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "MaupassantBatch.json"), maupassantBatch.getData());	
 	}
 	
@@ -199,6 +231,7 @@ public class App
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
 		appendAnalyzeStep(wodehouseBatch);
+		appendAggregateStep(wodehouseBatch);		
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "WodehouseBatch.json"), wodehouseBatch.getData());
 	}
 	
@@ -211,6 +244,7 @@ public class App
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
 		appendAnalyzeStep(ohenryBatch);
+		appendAggregateStep(ohenryBatch);		
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "OHenryBatch.json"), ohenryBatch.getData());
 	}
 	
@@ -242,6 +276,7 @@ public class App
     	}
 	}
 	
+	@SuppressWarnings("unused")
 	private void writeFile(String path, String fileName, String content) throws IOException {
 		FileOutputStream fout = null;
 		try {
@@ -261,6 +296,7 @@ public class App
 		}
 	}
 	
+	@SuppressWarnings("unused")
 	private void writeFile(String path, String fileName, JsonNode content) throws IOException {
 		File f = new File(path + System.getProperty("file.separator", "/") + fileName);
 		ObjectMapper mapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
@@ -284,6 +320,7 @@ public class App
 		}
 	}
 	
+	@SuppressWarnings("unused")
 	private String readFile(String path, String fileName) throws IOException {
 		File f = new File(path + System.getProperty("file.separator", "/") + fileName);
 		FileInputStream fin = null;
@@ -302,6 +339,7 @@ public class App
 		}		
 	}
 	
+	@SuppressWarnings("unused")
 	private List<String> readFileToList(String path, String fileName) throws IOException {
 		List<String> allLines = FileUtils.readLines(
 					new File(
