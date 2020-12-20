@@ -109,59 +109,7 @@ public class App
 			}
 		}
 	}
-	
-	private void appendAnalyzeStep(CorpusBatch corpusBatch) throws IOException {
-		CorpusBatchStepModel analyzeStep = new CorpusBatchStepModel();
-		analyzeStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		analyzeStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
-		analyzeStep.setCorpusBatchStepId("Analyze");
-		analyzeStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.Analyze");
-		ArrayNode customAnnotators = analyzeStep.getProperties().arrayNode();
-		List<String> customAnnotatorList = readStreamToList(getClass().getClassLoader().getResourceAsStream("io/outofprintmagazine/util/annotators.txt"));
-		for (String customAnnotator : customAnnotatorList) {
-			customAnnotators.add(customAnnotator);
-		}
-		analyzeStep.getProperties().set("customAnnotators", customAnnotators);
-		corpusBatch.getData().getCorpusBatchSteps().add(analyzeStep);
-	}
-	
-	private void appendAggregateStep(CorpusBatch corpusBatch) throws IOException {
-		CorpusBatchStepModel aggregateStep = new CorpusBatchStepModel();
-		aggregateStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		aggregateStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
-		aggregateStep.setCorpusBatchStepId("CorpusAggregate");
-		aggregateStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CorpusAggregate");
-		corpusBatch.getData().getCorpusBatchSteps().add(aggregateStep);
-
-		CorpusBatchStepModel aggregateIdfStep = new CorpusBatchStepModel();
-		aggregateIdfStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		aggregateIdfStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
-		aggregateIdfStep.setCorpusBatchStepId("CoreNLPTfidf");
-		aggregateIdfStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CoreNLPTfidfScores");
-		corpusBatch.getData().getCorpusBatchSteps().add(aggregateIdfStep);		
-
-		CorpusBatchStepModel aggregateZStep = new CorpusBatchStepModel();
-		aggregateZStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		aggregateZStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
-		aggregateZStep.setCorpusBatchStepId("CoreNLPZ");
-		aggregateZStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CoreNLPZScores");
-		corpusBatch.getData().getCorpusBatchSteps().add(aggregateZStep);	
-
-		CorpusBatchStepModel aggregateMBStep = new CorpusBatchStepModel();
-		aggregateMBStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		aggregateMBStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
-		aggregateMBStep.setCorpusBatchStepId("CoreNLPMB");
-		aggregateMBStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.CoreNLPMyersBriggsScores");
-		corpusBatch.getData().getCorpusBatchSteps().add(aggregateMBStep);		
 		
-		CorpusBatchStepModel word2vecStep = new CorpusBatchStepModel();
-		word2vecStep.setCorpusBatchId(corpusBatch.getData().getCorpusBatchId());
-		word2vecStep.setCorpusBatchStepSequenceId(Integer.valueOf(corpusBatch.getData().getCorpusBatchSteps().size()));
-		word2vecStep.setCorpusBatchStepId("Word2Vec");
-		word2vecStep.setCorpusBatchStepClass("io.outofprintmagazine.corpus.batch.impl.BuildWord2VecModels");
-		corpusBatch.getData().getCorpusBatchSteps().add(word2vecStep);
-	}
-	
 	private void writeChekhovBatch(String outputPath) throws Exception {
 		writeFile(
 				outputPath, 
@@ -181,8 +129,8 @@ public class App
 		CorpusBatchStepModel importDirectoryStep = chekhovBatch.getData().getCorpusBatchSteps().get(0);
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
-		appendAnalyzeStep(chekhovBatch);
-		appendAggregateStep(chekhovBatch);
+		chekhovBatch.appendAnalyzeStep();
+		chekhovBatch.appendAggregateStep();
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "ChekhovBatch.json"), chekhovBatch.getData());
 		
 	}
@@ -206,8 +154,8 @@ public class App
 		CorpusBatchStepModel importDirectoryStep = maupassantBatch.getData().getCorpusBatchSteps().get(0);
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
-		appendAnalyzeStep(maupassantBatch);
-		appendAggregateStep(maupassantBatch);		
+		maupassantBatch.appendAnalyzeStep();
+		maupassantBatch.appendAggregateStep();		
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "MaupassantBatch.json"), maupassantBatch.getData());	
 	}
 	
@@ -230,8 +178,8 @@ public class App
 		CorpusBatchStepModel importDirectoryStep = wodehouseBatch.getData().getCorpusBatchSteps().get(0);
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
-		appendAnalyzeStep(wodehouseBatch);
-		appendAggregateStep(wodehouseBatch);		
+		wodehouseBatch.appendAnalyzeStep();
+		wodehouseBatch.appendAggregateStep();		
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "WodehouseBatch.json"), wodehouseBatch.getData());
 	}
 	
@@ -243,8 +191,8 @@ public class App
 		CorpusBatchStepModel importDirectoryStep = ohenryBatch.getData().getCorpusBatchSteps().get(0);
 		ObjectNode importDirectoryStepProperties = importDirectoryStep.getProperties();
 		importDirectoryStepProperties.put("directory", outputPath);
-		appendAnalyzeStep(ohenryBatch);
-		appendAggregateStep(ohenryBatch);		
+		ohenryBatch.appendAnalyzeStep();
+		ohenryBatch.appendAggregateStep();		
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "OHenryBatch.json"), ohenryBatch.getData());
 	}
 	
