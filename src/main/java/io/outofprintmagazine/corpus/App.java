@@ -32,6 +32,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
+import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -62,14 +63,17 @@ public class App
 	public static void main(String[] args) throws Exception {
 		CommandLineParser parser = new DefaultParser();
 		Options options = new Options();
-		options.addOption( "a", "action", true, "REQUIRED. analyze or generate. analyze requires inputPath. generate requires outputPath." );
-		options.addOption( "i", "inputPath", true, "Path to input json file (./batch.json)." );
+		options.addOption( "a", "action", true, "REQUIRED. generate, analyze, or aggregate. generate requires outputPath. analyze requires inputPath. aggregate requires inputBatch (multiple)" );
 		options.addOption( "o", "outputPath", true, "Path to output json files (.)." );
+		options.addOption( "i", "inputPath", true, "Path to input json file (./batch.json)." );
+		Option inputBatch = new Option("b", "inputBatch", true, "Path to output json file of analyze step.");
+		inputBatch.setArgs(Option.UNLIMITED_VALUES);
+		options.addOption(inputBatch);
 		options.addOption( "h", "help", false, "print usage" );
 		CommandLine cmd = parser.parse( options, args);
 		if (cmd.hasOption("help") || cmd.getOptions().length == 0 || !cmd.hasOption("action")) {
 			HelpFormatter formatter = new HelpFormatter();
-		    formatter.printHelp("oopcorenlp", options);
+		    formatter.printHelp("oopcorenlp_corpus", options);
 		    return;
 		}
 		if (cmd.getOptionValue("action").equals("generate")) {
@@ -85,9 +89,25 @@ public class App
     		batch.run();
 		    return;
 		}
+		if (cmd.getOptionValue("action").equals("aggregate")) {
+			if (cmd.hasOption("inputBatch")) {
+				String[] inputBatchPaths = cmd.getOptionValues("inputBatch");
+				CorpusBatch corporaAggregatesBatch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/corporaAggregates/CorporaAggregates.json");
+				List<CorpusBatch> corpora = new ArrayList<CorpusBatch>();
+				for (String inputBatchPath : inputBatchPaths) {
+					corpora.add(CorpusBatch.buildFromFile(inputBatchPath));
+				}
+				corporaAggregatesBatch.aggregateBatches(corpora);
+				corporaAggregatesBatch.run();
+			}
+			else {
+				HelpFormatter formatter = new HelpFormatter();
+			    formatter.printHelp("oopcorenlp_corpus", options);
+			}
+		    return;
+		}
 		HelpFormatter formatter = new HelpFormatter();
-	    formatter.printHelp("oopcorenlp", options);
- 		
+	    formatter.printHelp("oopcorenlp_corpus", options);
 	}
 	
 	private void writeProperties(String outputPath) throws IOException {
@@ -195,7 +215,7 @@ public class App
 		ohenryBatch.appendAggregateStep();		
 		new ObjectMapper().writer(new DefaultPrettyPrinter()).writeValue(new File(outputPath + System.getProperty("file.separator", "/") + "OHenryBatch.json"), ohenryBatch.getData());
 	}
-	
+		
 	public void generateTemplates(String outputPath) throws Exception {
 		writeProperties(outputPath);
 		writeChekhovBatch(outputPath);
