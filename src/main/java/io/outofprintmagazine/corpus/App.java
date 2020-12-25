@@ -63,7 +63,7 @@ public class App
 	public static void main(String[] args) throws Exception {
 		CommandLineParser parser = new DefaultParser();
 		Options options = new Options();
-		options.addOption( "a", "action", true, "REQUIRED. generate, analyze, or aggregate. generate requires outputPath. analyze requires inputPath. aggregate requires inputBatch (multiple)" );
+		options.addOption( "a", "action", true, "REQUIRED. generate, analyze, or aggregate. generate requires outputPath. analyze requires inputPath. aggregate requires outputPath (from generate) and inputBatch (multiple)" );
 		options.addOption( "o", "outputPath", true, "Path to output json files (.)." );
 		options.addOption( "i", "inputPath", true, "Path to input json file (./batch.json)." );
 		Option inputBatch = new Option("b", "inputBatch", true, "Path to output json file of analyze step.");
@@ -93,6 +93,8 @@ public class App
 			if (cmd.hasOption("inputBatch")) {
 				String[] inputBatchPaths = cmd.getOptionValues("inputBatch");
 				CorpusBatch corporaAggregatesBatch = CorpusBatch.buildFromTemplate("io/outofprintmagazine/corpus/batch/impl/corporaAggregates/CorporaAggregates.json");
+				String outputPath = cmd.hasOption("outputPath")?cmd.getOptionValue("outputPath"):".";
+				corporaAggregatesBatch.getData().getProperties().put("propertiesFilePath", outputPath);
 				List<CorpusBatch> corpora = new ArrayList<CorpusBatch>();
 				for (String inputBatchPath : inputBatchPaths) {
 					corpora.add(CorpusBatch.buildFromFile(inputBatchPath));
