@@ -12,7 +12,13 @@
 		<version>1.0</version>
 	</parent>
 	
-	<dependencies>	
+	<dependencies>
+		<dependency>
+			<groupId>io.outofprintmagazine</groupId>
+			<artifactId>oopcorenlp</artifactId>
+			<version>${oopcorenlp.version}</version>
+		</dependency>
+	
 		<dependency>
 			<groupId>io.outofprintmagazine</groupId>
 			<artifactId>oopcorenlp_corpus</artifactId>
